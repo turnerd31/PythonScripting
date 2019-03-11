@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+
+# author: Drew Turner
+# info: Scrape GiantBomb.com for game titles. Imports a Rotating proxy function that may or may not be useful
+
+import re
+import csv
+import time
+import random
+import lxml.html
+import requests
+from rotatingproxy import RotatingProxy
+
+from lxml.html import fromstring
+from itertools import cycle
+import traceback
+"""
+def get_proxies():
+    url = 'https://free-proxy-list.net/'
+    response = requests.get(url)
+    parser = fromstring(response.text)
+    proxies = set()
+    for i in parser.xpath('//tbody/tr')[:10]:
+        if i.xpath('.//td[7][contains(text(),"yes")]'):
+            #Grabbing IP and corresponding PORT
+            proxy = ":".join([i.xpath('.//td[1]/text()')[0], i.xpath('.//td[2]/text()')[0]])
+            proxies.add(proxy)
+    return proxies
+"""
+rproxy = RotatingProxy()
+proxy = rproxy.set_proxy(israndom="r")
+##proxy_pool = cycle(proxies)
+print(proxies)
+
+url = "https://www.giantbomb.com/games/?page=1"
+headers = {
+    'authority': 'www.giantbomb.com',
+    'upgrade-insecure-requests': '1',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'dnt': '1',
+    'accept-encoding': 'gzip, deflate, br',
+    'accept-language': 'en-US,en;q=0.9',
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+}
+
+r = requests.get(url, headers=headers)
+data = r.text
+
+lastPageNum = 0
+
+tree = lxml.html.fromstring(data)
+elements = tree.find_class("paginate__item")
+for element in elements:
+    if '"paginate__item">' in lxml.html.tostring(element).decode('utf-8'):
+        lastPage = re.search(r'<a href=\"\/games\/\?page=(.*)\" class=\"btn\">', lxml.html.tostring(element).decode('utf-8'))
+        if int(lastPage.group(1)) > 1000:
+            lastPageNum = int(lastPage.group(1))
+print("Total pages to scrape: ", lastPageNum)
+print("Sleeping for 3 seconds")
+time.sleep(3)
+
+
+for i in range(1, lastPageNum + 1):
+    #proxy = next(proxy_pool)
+    print(proxy)
+    url = "https://www.giantbomb.com/games/?sortBy=alpha&page=" + str(i)
+    print(url)
+    headers = {
+        'authority': 'www.giantbomb.com',
+        'upgrade-insecure-requests': '1',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'dnt': '1',
+        'accept-encoding': 'gzip, deflate, br',
+        'accept-language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+    }
+
+    try:
+        r = requests.get(url, proxies={"http": proxy, "https": proxy}, headers=headers)
+    except OSError:
+        rproxy.delete_proxy(rproxy.fetch_proxy())
+        #proxy = rproxy.set_proxy(israndom="r")
+
+        print(proxy)
+        r = requests.get(url, proxies={"http": proxy, "https": proxy}, headers=headers)
+
+        #proxies = get_proxies()
+        #proxy_pool = cycle(proxies)
+
+    data = r.text
+    raw_string = lxml.html.fromstring(data)
+
+    raw_html = raw_string.xpath("//section[@id='river']/ul/li")
+
+    for element in raw_html:
+        elementData = lxml.html.tostring(element).decode('utf-8')
+
+        # Get game title.
+        try:
+            gameTitle = str(re.search(r'<h3 class=\"title\">(.*)<\/h3>', elementData).group(1)).strip()
+        except AttributeError:
+            gameTitle = ""
+
+        if not gameTitle:
+            gameTitle = "++ TITLE NOT DEFINED"
+
+        # Get game release date.
+        try:
+            gameRelDate = str(re.search(r'<span class=\"flag.*>\n\s*(.*)\s*<\/span>', elementData).group(1)).strip()
+        except AttributeError:
+            gameRelDate = ""
+
+        if not gameRelDate:
+            gameRelDate = "++ DATE NOT DEFINED"
+
+        # Get game info line.
+        try:
+            gameInfo = str(re.search(r'<p class=\"deck\">(.*)</p>', elementData).group(1)).strip()
+        except AttributeError:
+            gameInfo = ""
+
+        if not gameInfo:
+            gameInfo = "++ INFO NOT DEFINED"
+
+        # Get game system listings.
+        systemList = []
+        for systemMatch in re.findall(r'<li class=\"system .*>([A-Z\d]{2,5})</li>', elementData):
+            if systemMatch:
+                systemList.append(systemMatch)
+
+        # Compile array for writing.
+        fullGameData = [gameTitle, gameRelDate, gameInfo, str(systemList)[1:-1]]
+        print(fullGameData)
+        with open('titleLog.csv', 'a') as logFile:
+            log = csv.writer(logFile)
+            log.writerow(fullGameData)
+    sleepTimer = random.randint(3, 8)
+    print("\n+++ Completed page", str(i) + "/" + str(lastPageNum), "Sleeping for", sleepTimer, " seconds.\n")
+    time.sleep(sleepTimer)
