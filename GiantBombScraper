@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # author: Drew Turner
-# info: Scrape GiantBomb.com for game titles. Imports a Rotating proxy function that may or may not be useful
+# info: Scrape GiantBomb.com for game titles. Imports a Rotating proxy function that may or may not be useful. !!!This is probably not as complete as it could be yet...
 
 import re
 import csv
