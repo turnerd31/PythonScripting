@@ -10,7 +10,7 @@ wordlist = "C:LOCAITON OF WORLDLIST"
 pdfReader = PyPDF2.PdfFileReader(open('pdf', 'rb'))
 
 for word in wordlist:
-  pdfReader.decrypt(word)
+  pdfReader.decrypt('word')
   if (pdfReader.isEncrypted == True):
     print('not the correct password, trying again')
   else : print('correct password found. pdf is decrypted') break
