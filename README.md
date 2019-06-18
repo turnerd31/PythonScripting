@@ -1,2 +1,2 @@
 # PythonScripting
-Helpful Pyhton code I've written
+Helpful Python code I've written
